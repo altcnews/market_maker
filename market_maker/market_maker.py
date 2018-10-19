@@ -299,7 +299,7 @@ class OrderManager:
         return int(round(buy_qty)), int(round(sell_qty))
 
     def one_loop(self):
-    	ticker = self.get_ticker()
+        ticker = self.get_ticker()
         pos = self.get_delta()
 
         if self.ctr == 4:
