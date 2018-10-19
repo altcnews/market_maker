@@ -1,3 +1,4 @@
+import logging
 # API URL.
 #BASE_URL = "https://testnet.bitmex.com/api/v1/"
 BASE_URL = "https://www.bitmex.com/api/v1/" # Once you're ready, uncomment this.
