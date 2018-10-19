@@ -9,7 +9,8 @@ import atexit
 import signal
 
 from market_maker import bitmex
-from market_maker.settings import settings
+from market_maker import settings
+#from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
 
 import threading
