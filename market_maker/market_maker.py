@@ -12,6 +12,7 @@ from market_maker import bitmex
 from market_maker import settings
 #from market_maker.settings import settings
 from market_maker.utils import log, constants, errors, math
+import time
 
 import threading
 import numpy as np
@@ -241,6 +242,7 @@ class OrderManager:
         self.first = True
         self.sleep_ctr = 0
         self.general_ctr = 0
+        self.ctr = 0
 
         exchange = ccxt.bitmex()
         date_N_days_ago = (datetime.datetime.now() - datetime.timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
@@ -257,7 +259,7 @@ class OrderManager:
         self.print_status()
 
         # Create orders and converge.
-        self.place_orders()
+        self.one_loop()
 
     def print_status(self):
         """Print the current MM status."""
@@ -284,7 +286,8 @@ class OrderManager:
 
         # Midpoint, used for simpler order placement.
         self.start_position_mid = ticker["mid"]
-        logger.info("%s Ticker: New Mid %.*f" % (self.instrument['symbol'], self.start_position_mid))
+        #print (self.start_position_mid)
+        logger.info("%s Ticker: New Mid %f" % (self.instrument['symbol'], self.start_position_mid))
         return ticker
 
     def calc_res_price(self, mid, qty, vola):
@@ -300,8 +303,10 @@ class OrderManager:
         return int(round(buy_qty)), int(round(sell_qty))
 
     def one_loop(self):
+        self.ctr += 1
+        self.general_ctr += 1
         ticker = self.get_ticker()
-        pos = self.get_delta()
+        pos = self.exchange.get_delta()
 
         if self.ctr == 4:
             self.ctr = 0
@@ -313,7 +318,7 @@ class OrderManager:
                 self.df['vola'] = self.df['ret'].rolling(60).apply(np.mean)
                 self.cur_volatility = self.df.iloc[-1].vola
                 print ("Volatility: ", self.cur_volatility)
-                logging.info('Full minute -- Volatility: {}'.format(self.cur_volatility))
+                logger.info('Full minute -- Volatility: {}'.format(self.cur_volatility))
             if self.first:
                 print (self.df.tail(5))
                 print (self.df.iloc[-1], self.df.iloc[-1].tick, self.df.iloc[-2], self.df.iloc[-2].tick)
@@ -327,12 +332,12 @@ class OrderManager:
 
         if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
             print ('Repetition! RESTART TRIGGERING')
-            logging.info('Repetition! RESTART TRIGGERING')
+            logger.info('Repetition! RESTART TRIGGERING')
             self.restart()
 
         if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
             print ('Repetition! RESTART TRIGGERING')
-            logging.info('Repetition! RESTART TRIGGERING')
+            logger.info('Repetition! RESTART TRIGGERING')
             self.restart()
 
         # no need for automatic restart for now
@@ -351,7 +356,7 @@ class OrderManager:
         else:
             self.idle = 0
 
-        logging.info('Subminute -- Mid price {}; Position Size: {}; OrderList: {}; OrderLength: {}'.format(ticker['mid'], pos, ord_list, len(ord_list)))
+        logger.info('Subminute -- Mid price {}; Position Size: {}; OrderList: {}; OrderLength: {}'.format(ticker['mid'], pos, ord_list, len(ord_list)))
 
         if self.act_volatility != None: #abrupt change in volatility
             cond1 = self.cur_volatility > self.act_volatility*1.25
@@ -369,20 +374,20 @@ class OrderManager:
         cond9 = (len(ord_list) >= 10)
 
         if self.streak == 3:
-            logging.info('Sleep to prevent successive market orders.')
+            logger.info('Sleep to prevent successive market orders.')
             cond4 = False
             self.sleep_ctr += 1
 
-        logging.info('assess conditions: {}, {}, {}, {}, {}, {}, {}, {}, {}'.format(cond1, cond2, cond3, cond4, cond5, cond6, cond7, cond8, cond9))
+        logger.info('assess conditions: {}, {}, {}, {}, {}, {}, {}, {}, {}'.format(cond1, cond2, cond3, cond4, cond5, cond6, cond7, cond8, cond9))
         if cond1 or cond2 or cond3 or cond4 or cond5 or cond6 or cond7 or cond8 or cond9:
             if cond3:
-                logging.info('First Trade!')
+                logger.info('First Trade!')
                 self.first = False
             if cond4 or cond1 or cond2 or cond7 or cond8 or cond9:
-                logging.info('Revise')
+                logger.info('Revise')
                 self.client.Order.Order_cancelAll().result()
             if cond5:
-                logging.info('Idle')
+                logger.info('Idle')
                 self.idle = 0
             r, spread = self.calc_res_price(ticker["mid"], pos, self.cur_volatility)
             print ('Real mid: ', r)
@@ -391,7 +396,7 @@ class OrderManager:
             self.place_orders(spread, r, buy_qty, sell_qty, pos)
             self.act_volatility = self.cur_volatility
             self.cur_len += bool(buy_qty) + bool(sell_qty)
-            logging.info('Orders post: {}, {}, {}, {}'.format(r, spread, buy_qty, sell_qty))
+            logger.info('Orders post: {}, {}, {}, {}'.format(r, spread, buy_qty, sell_qty))
         else:
             pass
 
@@ -432,10 +437,10 @@ class OrderManager:
             sell_orders.append(sell)
             buy_orders.append(buy)
         print ('Buy: {}; Sell: {}'.format(buy['price'], sell['price']))
-        logging.info('Buy: {}; Sell: {}'.format(buy['price'], sell['price']))
-        return self.converge_orders(buy_orders, sell_orders)
+        logger.info('Buy: {}; Sell: {}'.format(buy['price'], sell['price']))
+        return self.converge_orders(buy_orders, sell_orders, spread, mid, buy_qty, sell_qty, pos)
 
-    def converge_orders(self, buy_orders, sell_orders):
+    def converge_orders(self, buy_orders, sell_orders, spread, mid, buy_qty, sell_qty, pos):
         """Converge the orders we currently have in the book with what we want to be in the book.
            This involves amending any open orders and creating new ones if any have filled completely.
            We start from the closest orders outward."""
@@ -498,7 +503,7 @@ class OrderManager:
                 if errorObj['error']['message'] == 'Invalid ordStatus':
                     logger.warn("Amending failed. Waiting for order data to converge and retrying.")
                     sleep(0.5)
-                    return self.place_orders()
+                    return self.place_orders(spread, mid, buy_qty, sell_qty, pos)
                 else:
                     logger.error("Unknown error on amend: %s. Exiting" % errorObj)
                     sys.exit(1)
@@ -572,6 +577,9 @@ class OrderManager:
         logger.info("Restarting the market maker...")
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
+def XBt_to_XBT(XBt):
+    return float(XBt) / constants.XBt_TO_XBT
+
 # todo: helper function: convert bitmex symbol to ccxt symbol
 def run():
     logger.info('BitMEX Market Maker Version: %s\n' % constants.VERSION)
@@ -586,5 +594,5 @@ def run():
 if __name__ == "__main__":
     current_hour = datetime.datetime.now().hour
     os.environ['TZ'] = 'Asia/Saigon'
-    time.tzset() # only available in Unix
+    #time.tzset() # only available in Unix
     run()

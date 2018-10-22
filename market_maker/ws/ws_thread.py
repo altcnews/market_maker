@@ -208,6 +208,7 @@ class BitMEXWebsocket():
     def __on_message(self, message):
         '''Handler for parsing WS messages.'''
         message = json.loads(message)
+        #print (message)
         self.logger.debug(json.dumps(message))
 
         table = message['table'] if 'table' in message else None
