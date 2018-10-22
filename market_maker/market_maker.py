@@ -331,10 +331,10 @@ class OrderManager:
         if self.first == True and len(ord_list) != 0:
             self.first = False
 
-        if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
-            print ('Repetition! RESTART TRIGGERING: ', [self.df.iloc[-1].tick, self.df.iloc[-2].tick, self.df.iloc[-3].tick])
-            logger.info('Repetition! RESTART TRIGGERING')
-            self.restart()
+        # if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
+        #     print ('Repetition! RESTART TRIGGERING: ', [self.df.iloc[-1].tick, self.df.iloc[-2].tick, self.df.iloc[-3].tick])
+        #     logger.info('Repetition! RESTART TRIGGERING')
+        #     self.restart()
 
         # no need for automatic restart for now
         # if self.general_ctr == 2880:
