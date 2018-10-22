@@ -332,12 +332,7 @@ class OrderManager:
             self.first = False
 
         if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
-            print ('Repetition! RESTART TRIGGERING')
-            logger.info('Repetition! RESTART TRIGGERING')
-            self.restart()
-
-        if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
-            print ('Repetition! RESTART TRIGGERING')
+            print ('Repetition! RESTART TRIGGERING: ', [self.df.iloc[-1].tick, self.df.iloc[-2].tick, self.df.iloc[-3].tick])
             logger.info('Repetition! RESTART TRIGGERING')
             self.restart()
 
@@ -577,7 +572,9 @@ class OrderManager:
 
     def restart(self):
         logger.info("Restarting the market maker...")
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        #os.execv(sys.executable, [sys.executable] + sys.argv)
+        os.system("python3 -m market_maker.market_maker")
+        sys.exit()
 
 def XBt_to_XBT(XBt):
     return float(XBt) / constants.XBt_TO_XBT
