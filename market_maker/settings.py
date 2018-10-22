@@ -16,7 +16,7 @@ API_ERROR_INTERVAL = 10
 TIMEOUT = 7
 
 # Available levels: logging.(DEBUG|INFO|WARN|ERROR)
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
 # If any of these files (and this file) changes, reload the bot.
 WATCHED_FILES = [join('market_maker', 'market_maker.py'), join('market_maker', 'bitmex.py'), join('market_maker', 'settings.py')]

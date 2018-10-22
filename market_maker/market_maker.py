@@ -231,7 +231,6 @@ class OrderManager:
         self.instrument = self.exchange.get_instrument()
         self.starting_qty = self.exchange.get_delta()
         self.running_qty = self.starting_qty
-        self.reset()
 
         self.cur_volatility = None
         self.act_volatility = None
@@ -253,13 +252,15 @@ class OrderManager:
 
         self.df = pd.DataFrame({'tick': df.tick.values.tolist()})
 
+        self.reset()
+
     def reset(self):
         self.exchange.cancel_all_orders()
         self.sanity_check()
         self.print_status()
 
         # Create orders and converge.
-        self.one_loop()
+        self.run_loop()
 
     def print_status(self):
         """Print the current MM status."""
@@ -303,7 +304,7 @@ class OrderManager:
         return int(round(buy_qty)), int(round(sell_qty))
 
     def one_loop(self):
-        self.ctr += 1
+        #self.ctr += 1
         self.general_ctr += 1
         ticker = self.get_ticker()
         pos = self.exchange.get_delta()
@@ -557,6 +558,7 @@ class OrderManager:
         sys.stdout.write("-----\n")
         sys.stdout.flush()
 
+        #print ("READ THIS!!!!!!!!!!!!!!", self.ctr)
         self.ctr += 1
 
         self.check_file_change()
@@ -585,6 +587,7 @@ def run():
     logger.info('BitMEX Market Maker Version: %s\n' % constants.VERSION)
 
     om = OrderManager()
+    print("print attributes: ", om.__dict__)
     # Try/except just keeps ctrl-c from printing an ugly stacktrace
     try:
         om.run_loop()
