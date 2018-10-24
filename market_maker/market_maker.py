@@ -244,6 +244,7 @@ class OrderManager:
         self.ctr = 0
 
         exchange = ccxt.bitmex()
+        logger.info('Connected to CCXT')
         date_N_days_ago = (datetime.datetime.now() - datetime.timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
         since = time.mktime(datetime.datetime.strptime(date_N_days_ago, "%Y-%m-%d %H:%M:%S").timetuple())*1000
         df = exchange.fetch_ohlcv('ETH/USD', timeframe = '1m', since=since, limit=500)
@@ -251,6 +252,7 @@ class OrderManager:
         df.columns = ["Timestamp", "Open", "High", "Low", "tick", "Volume"]
 
         self.df = pd.DataFrame({'tick': df.tick.values.tolist()})
+        logger.info('Retrieved data from CCXT! Len df: {}'.format(len(self.df)))
 
         self.reset()
 
@@ -260,7 +262,7 @@ class OrderManager:
         self.print_status()
 
         # Create orders and converge.
-        self.run_loop()
+        self.one_loop()
 
     def print_status(self):
         """Print the current MM status."""
@@ -294,6 +296,7 @@ class OrderManager:
     def calc_res_price(self, mid, qty, vola):
         #print (qty)
         VAR = vola
+        logger.info('Qty: {}, GAMMA: {}, VAR: {}, D: {}'.format(qty, GAMMA, VAR, D))
         r = mid - (qty*GAMMA*VAR*D)/MAX_POS
         spread = max(0.1, GAMMA*VAR*D + np.log(1+GAMMA/K))
         return r, spread
@@ -308,6 +311,13 @@ class OrderManager:
         self.general_ctr += 1
         ticker = self.get_ticker()
         pos = self.exchange.get_delta()
+
+        if self.first == True and pos != 0:
+            self.first = False
+            self.ctr = 4
+        if self.first == True and len(ord_list) != 0:
+            self.first = False
+            self.ctr = 4
 
         if self.ctr == 4:
             self.ctr = 0
@@ -326,10 +336,8 @@ class OrderManager:
 
         ord_list = self.exchange.get_orders()
 
-        if self.first == True and pos != 0:
-            self.first = False
-        if self.first == True and len(ord_list) != 0:
-            self.first = False
+        if len(ord_list) > 2:
+            self.reset()
 
         # if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
         #     print ('Repetition! RESTART TRIGGERING: ', [self.df.iloc[-1].tick, self.df.iloc[-2].tick, self.df.iloc[-3].tick])
@@ -347,12 +355,14 @@ class OrderManager:
         if (self.cur_len == self.prev_len) and (self.cur_len > 0): # could incur errors
             self.idle += 1
         elif (self.cur_len < self.prev_len):
+            print ("RAPID FILLED: ", self.cur_len, self.prev_len)
             self.streak += 1
             self.idle = 0 #wont use idle for now
         else:
             self.idle = 0
 
         logger.info('Subminute -- Mid price {}; Position Size: {}; OrderList: {}; OrderLength: {}'.format(ticker['mid'], pos, ord_list, len(ord_list)))
+        #logger.info("Current Order list: ", ord_list, self.cur_len)
 
         if self.act_volatility != None: #abrupt change in volatility
             cond1 = self.cur_volatility > self.act_volatility*1.25
@@ -361,7 +371,7 @@ class OrderManager:
             cond1 = cond2 = False
 
         cond3 = (self.cur_volatility != None) and (self.first) # no order placed before + enough data to calc volatility
-        cond4 = (ord_list != None) and (ord_list != []) and (len(ord_list) < 2) and (self.cur_len < self.prev_len) # 1 order just filled --> left 1 order on the other side
+        cond4 = (ord_list != None) and (ord_list != []) and (len(ord_list) < 2) #and (self.cur_len < self.prev_len) # 1 order just filled --> left 1 order on the other side
         #cond5 = (self.idle == 60) # if orders don't get filled for too long
         cond5 = False
         cond6 = (ord_list == [] and self.first == False) # no orders after the first trade
@@ -372,6 +382,7 @@ class OrderManager:
         if self.streak == 3:
             logger.info('Sleep to prevent successive market orders.')
             cond4 = False
+            self.streak = 0
             self.sleep_ctr += 1
 
         logger.info('assess conditions: {}, {}, {}, {}, {}, {}, {}, {}, {}'.format(cond1, cond2, cond3, cond4, cond5, cond6, cond7, cond8, cond9))
@@ -381,7 +392,7 @@ class OrderManager:
                 self.first = False
             if cond4 or cond1 or cond2 or cond7 or cond8 or cond9:
                 logger.info('Revise')
-                self.client.Order.Order_cancelAll().result()
+                #self.client.Order.Order_cancelAll().result()
             if cond5:
                 logger.info('Idle')
                 self.idle = 0
@@ -465,8 +476,13 @@ class OrderManager:
                         # If price has changed, and the change is more than our RELIST_INTERVAL, amend.
                         desired_order['price'] != order['price'] and
                         abs((desired_order['price'] / order['price']) - 1) > settings.RELIST_INTERVAL):
-                    to_amend.append({'orderID': order['orderID'], 'orderQty': order['cumQty'] + desired_order['orderQty'],
-                                     'price': desired_order['price'], 'side': order['side']})
+                    try:
+                        to_amend.append({'orderID': order['orderID'], 'orderQty': desired_order['orderQty'],
+                                        'price': desired_order['price'], 'side': order['side'], 'execInst': desired_order['execInst']})
+                    except:
+                        to_amend.append({'orderID': order['orderID'], 'orderQty': desired_order['orderQty'],
+                                        'price': desired_order['price'], 'side': order['side']})
+
             except IndexError:
                 # Will throw if there isn't a desired order to match. In that case, cancel it.
                 to_cancel.append(order)
@@ -584,7 +600,7 @@ def run():
     logger.info('BitMEX Market Maker Version: %s\n' % constants.VERSION)
 
     om = OrderManager()
-    print("print attributes: ", om.__dict__)
+    #print("print attributes: ", om.__dict__)
     # Try/except just keeps ctrl-c from printing an ugly stacktrace
     try:
         om.run_loop()
