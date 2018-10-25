@@ -329,7 +329,7 @@ class OrderManager:
                 self.df['vola'] = self.df['ret'].rolling(60).apply(np.mean)
                 self.cur_volatility = self.df.iloc[-1].vola
                 print ("Volatility: ", self.cur_volatility)
-                logger.info('Full minute -- Volatility: {}'.format(self.cur_volatility))
+                logger.info('Full minute -- Volatility: {}, Trade Volatility: {}'.format(self.cur_volatility, self.act_volatility))
             if self.first:
                 print (self.df.tail(5))
                 print (self.df.iloc[-1], self.df.iloc[-1].tick, self.df.iloc[-2], self.df.iloc[-2].tick)
@@ -337,7 +337,7 @@ class OrderManager:
         ord_list = self.exchange.get_orders()
 
         if len(ord_list) > 2:
-            self.reset()
+            self.exchange.cancel_all_orders()
 
         # if (self.df.iloc[-1].tick == self.df.iloc[-2].tick) and (self.df.iloc[-3].tick == self.df.iloc[-2].tick):
         #     print ('Repetition! RESTART TRIGGERING: ', [self.df.iloc[-1].tick, self.df.iloc[-2].tick, self.df.iloc[-3].tick])
