@@ -311,6 +311,7 @@ class OrderManager:
         self.general_ctr += 1
         ticker = self.get_ticker()
         pos = self.exchange.get_delta()
+        ord_list = self.exchange.get_orders()
 
         if self.first == True and pos != 0:
             self.first = False
@@ -333,8 +334,6 @@ class OrderManager:
             if self.first:
                 print (self.df.tail(5))
                 print (self.df.iloc[-1], self.df.iloc[-1].tick, self.df.iloc[-2], self.df.iloc[-2].tick)
-
-        ord_list = self.exchange.get_orders()
 
         if len(ord_list) > 2:
             self.exchange.cancel_all_orders()
@@ -471,11 +470,12 @@ class OrderManager:
                     desired_order = sell_orders[sells_matched]
                     sells_matched += 1
 
+                amend_cond_1 = desired_order['orderQty'] != order['leavesQty']
+                amend_cond_2 = desired_order['price'] != order['price']
+                logger.info('Desired Orders: {}'.format(desired_order))
+                logger.info('Amend Conditions: {}, {}'.format(amend_cond_1, amend_cond_2))
                 # Found an existing order. Do we need to amend it?
-                if desired_order['orderQty'] != order['leavesQty'] or (
-                        # If price has changed, and the change is more than our RELIST_INTERVAL, amend.
-                        desired_order['price'] != order['price'] and
-                        abs((desired_order['price'] / order['price']) - 1) > settings.RELIST_INTERVAL):
+                if (amend_cond_1) or (amend_cond_2):
                     try:
                         to_amend.append({'orderID': order['orderID'], 'orderQty': desired_order['orderQty'],
                                         'price': desired_order['price'], 'side': order['side'], 'execInst': desired_order['execInst']})
@@ -494,6 +494,8 @@ class OrderManager:
         while sells_matched < len(sell_orders):
             to_create.append(sell_orders[sells_matched])
             sells_matched += 1
+
+        logger.info('To Amend: {}; Len amend: {} \n To Create: {}, Len Create: {}'.format(to_amend, len(to_amend), to_create, len(to_create)))
 
         if len(to_amend) > 0:
             for amended_order in reversed(to_amend):
