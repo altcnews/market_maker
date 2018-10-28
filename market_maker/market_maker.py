@@ -298,7 +298,7 @@ class OrderManager:
         VAR = vola
         logger.info('Qty: {}, GAMMA: {}, VAR: {}, D: {}'.format(qty, GAMMA, VAR, D))
         r = mid - (qty*GAMMA*VAR*D)/MAX_POS
-        spread = max(0.1, GAMMA*VAR*D + np.log(1+GAMMA/K))
+        spread = max(0.1, GAMMA*VAR*D + np.log10(1+GAMMA/K))
         return r, spread
 
     def get_qty(self, qty):

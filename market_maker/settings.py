@@ -5,8 +5,8 @@ from os.path import join
 BASE_URL = "https://www.bitmex.com/api/v1/" # Once you're ready, uncomment this.
 
 # The BitMEX API requires permanent API keys. Go to https://testnet.bitmex.com/app/apiKeys to fill these out.
-API_KEY = "ZJ7ZG0bDrem884wQkNnvv2PB"
-API_SECRET = "wbFfEOkZqut7OG8rueCPTmEsCsYHyqxakxlg1dNoZbz7EJ6w"
+API_KEY = "9FR7reF9F71NDZG_BDoMsfm9" #"ZJ7ZG0bDrem884wQkNnvv2PB"
+API_SECRET = "TiXEEabXxJ_KX5ev_RoOnB-JVQqDdj4AAMJvRBXpPhtAKGVH" #"wbFfEOkZqut7OG8rueCPTmEsCsYHyqxakxlg1dNoZbz7EJ6w"
 
 SYMBOL = 'ETHUSD'
 
@@ -25,7 +25,7 @@ WATCHED_FILES = [join('market_maker', 'market_maker.py'), join('market_maker', '
 RELIST_INTERVAL = 0.00
 
 # hyperparameters
-GAMMA = 15
+GAMMA = 15 #8000?
 K = 30
 D = 0.99
 THETA = 25
