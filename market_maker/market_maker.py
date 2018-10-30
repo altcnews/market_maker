@@ -317,7 +317,7 @@ class OrderManager:
         #     else:
         #         sell_qty = THETA*np.exp(ETA2*qty)
         #     buy_qty = THETA*np.exp(-ETA*qty)
-        # return int(round(buy_qty)), int(round(sell_qty))
+        return int(round(buy_qty)), int(round(sell_qty))
 
     def one_loop(self):
         #self.ctr += 1
@@ -637,5 +637,5 @@ def run():
 if __name__ == "__main__":
     current_hour = datetime.datetime.now().hour
     os.environ['TZ'] = 'Asia/Saigon'
-    time.tzset() # only available in Unix
+    #time.tzset() # only available in Unix
     run()
