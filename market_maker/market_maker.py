@@ -381,8 +381,8 @@ class OrderManager:
 
         if self.act_volatility != None: #abrupt change in volatility
         # AND MID NOT NEARBY LIMIT ORDER PRICE
-            cond1 = self.cur_volatility > self.act_volatility*1.15
-            cond2 = self.cur_volatility < self.act_volatility*.85
+            cond1 = self.cur_volatility > self.act_volatility*1.25
+            cond2 = self.cur_volatility < self.act_volatility*.75
         else:
             cond1 = cond2 = False
 
