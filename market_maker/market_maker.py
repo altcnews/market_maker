@@ -454,10 +454,10 @@ class OrderManager:
 
         if buy_price >= exchange_mid:
             logging.info('Buy -- Revise Price for POSTONLY')
-            buy_price = self.round_to_05(float(Decimal(exchange_mid) - Decimal(0.1)))
+            buy_price = self.round_to_05(float(Decimal(exchange_mid) - Decimal(0.05)))
         if sell_price <= exchange_mid:
             logging.info('Sell -- Revise Price for POSTONLY')
-            sell_price = self.round_to_05(float(Decimal(exchange_mid) + Decimal(0.1)))
+            sell_price = self.round_to_05(float(Decimal(exchange_mid) + Decimal(0.05)))
         buy = {'orderQty': buy_qty, 'price': buy_price, 'side': 'Buy', 'execInst': 'ParticipateDoNotInitiate'}
         sell = {'orderQty': sell_qty, 'price': sell_price, 'side': 'Sell', 'execInst': 'ParticipateDoNotInitiate'}
         if buy_qty == 0:
@@ -637,5 +637,5 @@ def run():
 if __name__ == "__main__":
     current_hour = datetime.datetime.now().hour
     os.environ['TZ'] = 'Asia/Saigon'
-    #time.tzset() # only available in Unix
+    time.tzset() # only available in Unix
     run()
