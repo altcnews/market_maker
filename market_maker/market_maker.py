@@ -416,7 +416,7 @@ class OrderManager:
             print ('Real mid: ', r)
             print ('Spread: ', spread)
             buy_qty, sell_qty = self.get_qty(pos)
-            self.place_orders(spread, r, buy_qty, sell_qty, pos)
+            self.place_orders(spread, r, ticker["mid"], buy_qty, sell_qty, pos)
             self.act_volatility = self.cur_volatility
             self.cur_len += bool(buy_qty) + bool(sell_qty)
             logger.info('Orders post: {}, {}, {}, {}'.format(r, spread, buy_qty, sell_qty))
@@ -432,7 +432,7 @@ class OrderManager:
     def round_to_05(self, n):
         return self.round_to(n, 0.05)
 
-    def place_orders(self, spread, mid, buy_qty, sell_qty, pos):
+    def place_orders(self, spread, mid, exchange_mid, buy_qty, sell_qty, pos):
         """Create order items for use in convergence."""
 
         buy_orders = []
@@ -443,15 +443,23 @@ class OrderManager:
         # down and a new order would be created at the outside.
 
         getcontext().prec = 4
-        if pos > 0:
-            buy = {'orderQty': buy_qty, 'price': self.round_to_05(float(Decimal(mid) - Decimal(spread)/Decimal(2))), 'side': 'Buy', 'execInst': 'ParticipateDoNotInitiate'}
-            sell = {'orderQty': sell_qty, 'price': self.round_to_05(float(Decimal(mid) + Decimal(spread)/Decimal(2))), 'side': 'Sell'}
-        elif pos < 0:
-            buy = {'orderQty': buy_qty, 'price': self.round_to_05(float(Decimal(mid) - Decimal(spread)/Decimal(2))), 'side': 'Buy'}
-            sell = {'orderQty': sell_qty, 'price': self.round_to_05(float(Decimal(mid) + Decimal(spread)/Decimal(2))), 'side': 'Sell', 'execInst': 'ParticipateDoNotInitiate'}
-        else:
-            buy = {'orderQty': buy_qty, 'price': self.round_to_05(float(Decimal(mid) - Decimal(spread)/Decimal(2))), 'side': 'Buy', 'execInst': 'ParticipateDoNotInitiate'}
-            sell = {'orderQty': sell_qty, 'price': self.round_to_05(float(Decimal(mid) + Decimal(spread)/Decimal(2))), 'side': 'Sell', 'execInst': 'ParticipateDoNotInitiate'}
+        # if pos > 0: # change so that we always send POSTONLY orders
+        #     buy = {'orderQty': buy_qty, 'price': self.round_to_05(float(Decimal(mid) - Decimal(spread)/Decimal(2))), 'side': 'Buy', 'execInst': 'ParticipateDoNotInitiate'}
+        #     sell = {'orderQty': sell_qty, 'price': self.round_to_05(float(Decimal(mid) + Decimal(spread)/Decimal(2))), 'side': 'Sell', 'execInst': 'ParticipateDoNotInitiate'}
+        # elif pos < 0:
+        #     buy = {'orderQty': buy_qty, 'price': self.round_to_05(float(Decimal(mid) - Decimal(spread)/Decimal(2))), 'side': 'Buy', 'execInst': 'ParticipateDoNotInitiate'}
+        #     sell = {'orderQty': sell_qty, 'price': self.round_to_05(float(Decimal(mid) + Decimal(spread)/Decimal(2))), 'side': 'Sell', 'execInst': 'ParticipateDoNotInitiate'}
+        buy_price = self.round_to_05(float(Decimal(mid) - Decimal(spread)/Decimal(2)))
+        sell_price = self.round_to_05(float(Decimal(mid) + Decimal(spread)/Decimal(2)))
+
+        if buy_price >= exchange_mid:
+            logging.info('Buy -- Revise Price for POSTONLY')
+            buy_price = self.round_to_05(float(Decimal(exchange_mid) - Decimal(0.1)))
+        if sell_price <= exchange_mid:
+            logging.info('Sell -- Revise Price for POSTONLY')
+            sell_price = self.round_to_05(float(Decimal(exchange_mid) + Decimal(0.1)))
+        buy = {'orderQty': buy_qty, 'price': buy_price, 'side': 'Buy', 'execInst': 'ParticipateDoNotInitiate'}
+        sell = {'orderQty': sell_qty, 'price': sell_price, 'side': 'Sell', 'execInst': 'ParticipateDoNotInitiate'}
         if buy_qty == 0:
             sell_orders.append(sell)
         elif sell_qty == 0:
@@ -461,9 +469,9 @@ class OrderManager:
             buy_orders.append(buy)
         print ('Buy: {}; Sell: {}'.format(buy['price'], sell['price']))
         logger.info('Buy: {}; Sell: {}'.format(buy['price'], sell['price']))
-        return self.converge_orders(buy_orders, sell_orders, spread, mid, buy_qty, sell_qty, pos)
+        return self.converge_orders(buy_orders, sell_orders, spread, mid, exchange_mid, buy_qty, sell_qty, pos)
 
-    def converge_orders(self, buy_orders, sell_orders, spread, mid, buy_qty, sell_qty, pos):
+    def converge_orders(self, buy_orders, sell_orders, spread, mid, exchange_mid, buy_qty, sell_qty, pos):
         """Converge the orders we currently have in the book with what we want to be in the book.
            This involves amending any open orders and creating new ones if any have filled completely.
            We start from the closest orders outward."""
@@ -497,8 +505,7 @@ class OrderManager:
                         to_amend.append({'orderID': order['orderID'], 'orderQty': desired_order['orderQty'],
                                         'price': desired_order['price'], 'side': order['side'], 'execInst': desired_order['execInst']})
                     except:
-                        to_amend.append({'orderID': order['orderID'], 'orderQty': desired_order['orderQty'],
-                                        'price': desired_order['price'], 'side': order['side']})
+                        logging.info('Unknown error to amending.')
 
             except IndexError:
                 # Will throw if there isn't a desired order to match. In that case, cancel it.
@@ -533,8 +540,8 @@ class OrderManager:
                 errorObj = e.response.json()
                 if errorObj['error']['message'] == 'Invalid ordStatus':
                     logger.warn("Amending failed. Waiting for order data to converge and retrying.")
-                    sleep(0.5)
-                    return self.place_orders(spread, mid, buy_qty, sell_qty, pos)
+                    sleep(5)
+                    return self.place_orders(spread, mid, exchange_mid, buy_qty, sell_qty, pos)
                 else:
                     logger.error("Unknown error on amend: %s. Exiting" % errorObj)
                     sys.exit(1)
