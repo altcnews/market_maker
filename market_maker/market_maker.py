@@ -242,6 +242,7 @@ class OrderManager:
         self.sleep_ctr = 0
         self.general_ctr = 0
         self.ctr = 0
+        self.to_record_vola = True
 
         exchange = ccxt.bitmex()
         logger.info('Connected to CCXT')
@@ -304,7 +305,19 @@ class OrderManager:
     def get_qty(self, qty):
         buy_qty = THETA*np.exp(-ETA2*qty) if qty < 0 else THETA*np.exp(-ETA*qty)
         sell_qty = THETA*np.exp(ETA2*qty) if qty > 0 else THETA*np.exp(ETA*qty)
-        return int(round(buy_qty)), int(round(sell_qty))
+        # if qty < 0:
+        #     if (abs(qty)/THETA) < 1.5:
+        #         buy_qty = abs(qty)
+        #     else:
+        #         buy_qty = THETA*np.exp(-ETA2*qty)
+        #     sell_qty = THETA*np.exp(ETA*qty)
+        # else:
+        #     if (abs(qty)/THETA) < 1.5:
+        #         sell_qty = -qty
+        #     else:
+        #         sell_qty = THETA*np.exp(ETA2*qty)
+        #     buy_qty = THETA*np.exp(-ETA*qty)
+        # return int(round(buy_qty)), int(round(sell_qty))
 
     def one_loop(self):
         #self.ctr += 1
@@ -334,6 +347,9 @@ class OrderManager:
             if self.first:
                 print (self.df.tail(5))
                 print (self.df.iloc[-1], self.df.iloc[-1].tick, self.df.iloc[-2], self.df.iloc[-2].tick)
+            if self.to_record_vola:
+                self.act_volatility = self.cur_volatility
+                self.to_record_vola = False
 
         if len(ord_list) > 2:
             self.exchange.cancel_all_orders()
@@ -364,8 +380,9 @@ class OrderManager:
         #logger.info("Current Order list: ", ord_list, self.cur_len)
 
         if self.act_volatility != None: #abrupt change in volatility
-            cond1 = self.cur_volatility > self.act_volatility*1.25
-            cond2 = self.cur_volatility < self.act_volatility*.75
+        # AND MID NOT NEARBY LIMIT ORDER PRICE
+            cond1 = self.cur_volatility > self.act_volatility*1.15
+            cond2 = self.cur_volatility < self.act_volatility*.85
         else:
             cond1 = cond2 = False
 
@@ -581,7 +598,8 @@ class OrderManager:
             # the MM will crash entirely as it is unable to connect to the WS on boot.
         if not self.check_connection():
             logger.error("Realtime data connection unexpectedly closed, restarting.")
-            self.restart()
+            sys.exit()
+            #self.restart()
 
         self.sanity_check()  # Ensures health of mm - several cut-out points here
         self.print_status()  # Print skew, delta, etc
@@ -612,5 +630,5 @@ def run():
 if __name__ == "__main__":
     current_hour = datetime.datetime.now().hour
     os.environ['TZ'] = 'Asia/Saigon'
-    #time.tzset() # only available in Unix
+    time.tzset() # only available in Unix
     run()
