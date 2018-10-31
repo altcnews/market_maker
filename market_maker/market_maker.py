@@ -453,10 +453,10 @@ class OrderManager:
         sell_price = self.round_to_05(float(Decimal(mid) + Decimal(spread)/Decimal(2)))
 
         if buy_price >= exchange_mid:
-            logging.info('Buy -- Revise Price for POSTONLY')
+            logger.info('Buy -- Revise Price for POSTONLY')
             buy_price = self.round_to_05(float(Decimal(exchange_mid) - Decimal(0.05)))
         if sell_price <= exchange_mid:
-            logging.info('Sell -- Revise Price for POSTONLY')
+            logger.info('Sell -- Revise Price for POSTONLY')
             sell_price = self.round_to_05(float(Decimal(exchange_mid) + Decimal(0.05)))
         buy = {'orderQty': buy_qty, 'price': buy_price, 'side': 'Buy', 'execInst': 'ParticipateDoNotInitiate'}
         sell = {'orderQty': sell_qty, 'price': sell_price, 'side': 'Sell', 'execInst': 'ParticipateDoNotInitiate'}
@@ -505,7 +505,7 @@ class OrderManager:
                         to_amend.append({'orderID': order['orderID'], 'orderQty': desired_order['orderQty'],
                                         'price': desired_order['price'], 'side': order['side'], 'execInst': desired_order['execInst']})
                     except:
-                        logging.info('Unknown error to amending.')
+                        logger.info('Unknown error to amending.')
 
             except IndexError:
                 # Will throw if there isn't a desired order to match. In that case, cancel it.
