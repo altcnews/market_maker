@@ -295,8 +295,8 @@ class OrderManager:
         return ticker
 
     def calc_res_price(self, mid, qty, vola):
-        #print (qty)
-        VAR = vola
+        #print (qty) 
+        VAR = max(vola, 0.005)
         logger.info('Qty: {}, GAMMA: {}, VAR: {}, D: {}'.format(qty, GAMMA, VAR, D))
         r = mid - (qty*GAMMA*VAR*D)/MAX_POS
         spread = max(0.1, GAMMA*VAR*D + np.log10(1+GAMMA/K))
